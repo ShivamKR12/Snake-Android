@@ -3,7 +3,7 @@
 """
 IMPROVEMENTS TO BE MADE: 
 
-1. Don't process inputs faster than the movement of the snake, since that would cause the snake to collide with itself, at the very start of the game, if done fast enough ! (which shouldn't be technically possible)
+1. [FIXED] Don't process inputs faster than the movement of the snake, since that would cause the snake to collide with itself, at the very start of the game, if done fast enough ! (which shouldn't be technically possible)
 """
 
 import pygame, sys, random
@@ -253,6 +253,7 @@ pygame.time.set_timer(SCREEN_UPDATE, 150)
 main_game = MAIN()
 
 # Main Game Loop
+input_handled = False
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_AC_BACK):
@@ -261,6 +262,7 @@ while True:
             
         if event.type == SCREEN_UPDATE:
             main_game.update()
+            input_handled = False
 
         elif event.type == pygame.VIDEORESIZE:
             current_window_width, current_window_height = event.w, event.h
@@ -280,17 +282,22 @@ while True:
             delta = current_pos - touch_start_pos
             
             if delta.length() > SWIPE_THRESHOLD:
-                if abs(delta.x) > abs(delta.y):
-                    if delta.x > 0 and main_game.snake.direction.x != -1:
-                        main_game.snake.direction = Vector2(1, 0)
-                    elif delta.x < 0 and main_game.snake.direction.x != 1:
-                        main_game.snake.direction = Vector2(-1, 0)
-                else:
-                    if delta.y > 0 and main_game.snake.direction.y != -1:
-                        main_game.snake.direction = Vector2(0, 1)
-                    elif delta.y < 0 and main_game.snake.direction.y != 1:
-                        main_game.snake.direction = Vector2(0, -1)
-                        
+                if not input_handled:
+                    if abs(delta.x) > abs(delta.y):
+                        if delta.x > 0 and main_game.snake.direction.x != -1:
+                            main_game.snake.direction = Vector2(1, 0)
+                            input_handled = True
+                        elif delta.x < 0 and main_game.snake.direction.x != 1:
+                            main_game.snake.direction = Vector2(-1, 0)
+                            input_handled = True
+                    else:
+                        if delta.y > 0 and main_game.snake.direction.y != -1:
+                            main_game.snake.direction = Vector2(0, 1)
+                            input_handled = True
+                        elif delta.y < 0 and main_game.snake.direction.y != 1:
+                            main_game.snake.direction = Vector2(0, -1)
+                            input_handled = True
+                
                 touch_start_pos = current_pos
 
         elif event.type == pygame.FINGERUP:
