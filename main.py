@@ -150,22 +150,35 @@ class MAIN:
     def __init__(self):
         self.snake = SNAKE()
         self.fruit = FRUIT()
+        self.is_game_over = False  # Track game state
 
     def update(self):
-        self.snake.move_snake()
-        self.check_collision()
-        self.check_fail()
+        # Only update if the game is active AND the snake is moving
+        if not self.is_game_over and self.snake.direction != Vector2(0, 0):
+            self.snake.move_snake()
+            self.check_collision()
+            self.check_fail()
     
     def draw_elements(self, surface):
         self.draw_grass(surface)
         self.snake.draw_snake(surface)
         self.fruit.draw_fruit(surface)
         self.draw_score(surface)
+        
+        # Draw the overlay if the game is over
+        if self.is_game_over:
+            self.draw_game_over_screen(surface)
     
     def check_collision(self):
         if self.fruit.position == self.snake.body[0]:
             print(f"[COLLISION] Snake ate Fruit at position: {self.fruit.position}")
             self.fruit.randomize()
+            
+            # Keep re-randomizing until the fruit is completely outside the snake
+            while self.fruit.position in self.snake.body:
+                print(f"[COLLISION] Fruit spawned inside Snake body at: {self.fruit.position}. Re-randomizing!")
+                self.fruit.randomize()
+            
             self.snake.add_block()
             self.snake.play_crunch_sound()
         
@@ -184,8 +197,31 @@ class MAIN:
                 self.game_over()
     
     def game_over(self):
+        # Stop the game instead of instantly resetting
+        self.is_game_over = True 
+
+    def restart(self):
+        # Triggered by tapping the screen after dying
         self.snake.reset()
-    
+        self.is_game_over = False
+        self.fruit.randomize() # Optional: randomizes apple on new game
+        
+    def draw_game_over_screen(self, surface):
+        # 1. Draw a dark semi-transparent overlay
+        overlay = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150)) # Black with 150 alpha (transparency)
+        surface.blit(overlay, (0, 0))
+
+        # 2. Draw "GAME OVER" text
+        go_surf = game_over_font.render("GAME OVER", True, (255, 60, 60))
+        go_rect = go_surf.get_rect(center=(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2 - 30))
+        surface.blit(go_surf, go_rect)
+
+        # 3. Draw "Tap to restart" subtext
+        sub_surf = sub_font.render("Tap to restart", True, (255, 255, 255))
+        sub_rect = sub_surf.get_rect(center=(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2 + 30))
+        surface.blit(sub_surf, sub_rect)
+        
     def draw_grass(self, surface):
         grass_color = (167, 209, 61)
         for row in range(CELL_NUMBER):
@@ -245,6 +281,11 @@ recalculate_scale(current_window_width, current_window_height)
 clock = pygame.time.Clock()
 apple = pygame.image.load(resource_path('Graphics/apple.png')).convert_alpha()
 game_font = pygame.font.Font(resource_path('Font/PoetsenOne-Regular.ttf'), 25)
+
+# Add these two new fonts:
+game_over_font = pygame.font.Font(resource_path('Font/PoetsenOne-Regular.ttf'), 60)
+sub_font = pygame.font.Font(resource_path('Font/PoetsenOne-Regular.ttf'), 25)
+
 pygame.display.set_icon(apple)
 
 SCREEN_UPDATE = pygame.USEREVENT 
@@ -270,9 +311,12 @@ while True:
             recalculate_scale(current_window_width, current_window_height)
             
         elif event.type == pygame.FINGERDOWN:
-            raw_x = event.x * current_window_width
-            raw_y = event.y * current_window_height
-            touch_start_pos = Vector2(raw_x, raw_y)
+            if main_game.is_game_over:
+                main_game.restart()
+            else:
+                raw_x = event.x * current_window_width
+                raw_y = event.y * current_window_height
+                touch_start_pos = Vector2(raw_x, raw_y)
             
         elif event.type == pygame.FINGERMOTION and touch_start_pos is not None:
             raw_x = event.x * current_window_width
